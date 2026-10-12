@@ -1,0 +1,460 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="color-scheme" content="dark" />
+  <title>Tablecraft · Markdown 转 LaTeX 表格</title>
+  <style>
+    :root {
+      --bg: #080d18;
+      --surface: #101928;
+      --surface-2: #121e30;
+      --surface-3: #18253a;
+      --border: #2a3a50;
+      --muted: #91a2b9;
+      --text: #eef4ff;
+      --teal: #60e4cb;
+      --blue: #9caeff;
+      --red: #ffa1a8;
+      --shadow: 0 26px 80px #0005;
+    }
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      color: var(--text);
+      font-family: Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+      background:
+        radial-gradient(ellipse 640px 400px at 13% 4%, #2a316c55, transparent 70%),
+        radial-gradient(ellipse 720px 450px at 92% 8%, #145e6550, transparent 68%),
+        var(--bg);
+      -webkit-font-smoothing: antialiased;
+    }
+    button, textarea, input { font: inherit; }
+    button { cursor: pointer; }
+    button:focus-visible, textarea:focus-visible, input:focus-visible + span { outline: 2px solid var(--teal); outline-offset: 3px; }
+    .shell { width: min(1280px, calc(100% - 64px)); margin: 0 auto; }
+    .topbar { display: flex; align-items: center; justify-content: space-between; padding: 30px 0 22px; gap: 24px; }
+    .brand { display: flex; align-items: center; gap: 12px; font-weight: 780; font-size: 18px; letter-spacing: -.45px; }
+    .brand-symbol { width: 38px; height: 38px; display: grid; place-items: center; border: 1px solid #83edda67; border-radius: 12px; color: var(--teal); background: linear-gradient(140deg,#2f5d68,#1c2848); box-shadow: inset 0 1px #ffffff25; font-size: 19px; }
+    .top-tag { display: inline-flex; align-items: center; gap: 8px; padding: 8px 12px; border: 1px solid #ffffff20; border-radius: 999px; background: #ffffff08; font-size: 12px; color: #bcc9df; white-space: nowrap; }
+    .top-tag .dot, .tag .dot { height: 7px; width: 7px; border-radius: 50%; background: var(--teal); box-shadow: 0 0 14px #60e4cb99; }
+    .hero { position: relative; display: flex; flex-direction: column; align-items: center; text-align: center; padding: 44px 0 42px; }
+    .eyebrow { display: inline-flex; align-items: center; gap: 8px; color: var(--teal); letter-spacing: .16em; text-transform: uppercase; font-weight: 700; font-size: 11px; }
+    .eyebrow::before, .eyebrow::after { content: ""; height: 1px; width: 24px; background: #60e4cb5a; }
+    h1 { margin: 17px 0 13px; max-width: 920px; font-size: clamp(30px, 4.4vw, 54px); line-height: 1.18; letter-spacing: -.055em; font-weight: 800; }
+    h1 span { background: linear-gradient(95deg,#6ef0d3,#b4c0ff); -webkit-background-clip: text; background-clip: text; color: transparent; }
+    .hero p { margin: 0; max-width: 650px; color: #aab9d0; font-size: 15px; line-height: 1.85; }
+    .workspace { display: grid; grid-template-columns: minmax(0,1fr) minmax(0,1fr); gap: 18px; align-items: stretch; }
+    .panel { position: relative; display: flex; flex-direction: column; min-width: 0; overflow: hidden; background: linear-gradient(160deg,#132034ee,#0f1829fa); border: 1px solid #ffffff22; border-radius: 18px; box-shadow: var(--shadow); }
+    .panel.output-panel { border-color: #68e5cf40; }
+    .panel-head { min-height: 76px; display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 19px 21px; border-bottom: 1px solid #ffffff12; }
+    .heading { display: flex; gap: 12px; align-items: center; min-width: 0; }
+    .panel-icon { width: 38px; height: 38px; border: 1px solid #ffffff1c; border-radius: 11px; display: grid; place-items: center; background: #ffffff08; color: var(--blue); flex: none; }
+    .output-panel .panel-icon { color: var(--teal); background: #60e4cb13; border-color: #60e4cb26; }
+    .panel-title { font-weight: 740; font-size: 15px; margin-bottom: 4px; }
+    .panel-subtitle { color: #8095b0; font-size: 12px; white-space: nowrap; }
+    .panel-actions { display: flex; align-items: center; gap: 7px; flex-wrap: wrap; justify-content: flex-end; }
+    .btn { display: inline-flex; justify-content: center; align-items: center; gap: 7px; border: 1px solid #40516a; background: #ffffff08; color: #c7d4e8; border-radius: 9px; padding: 9px 12px; line-height: 1; font-size: 12px; font-weight: 680; transition: background .18s, border-color .18s, transform .18s; white-space: nowrap; }
+    .btn:hover { background: #ffffff16; border-color: #6c809d; }
+    .btn:active { transform: translateY(1px); }
+    .btn-primary { background: var(--teal); border-color: var(--teal); color: #08232b; }
+    .btn-primary:hover { background: #9df3e2; border-color: #9df3e2; }
+    .btn svg { width: 14px; height: 14px; }
+    .editor { position: relative; flex: 1; min-height: 385px; }
+    .editor textarea { display: block; width: 100%; height: 100%; min-height: 385px; border: 0; resize: vertical; background: transparent; color: #e5eeff; outline: none; padding: 25px 25px 28px; font: 14px/1.95 "SFMono-Regular", Consolas, "Liberation Mono", "Microsoft YaHei", monospace; letter-spacing: .01em; tab-size: 2; overflow-wrap: normal; white-space: pre; }
+    #output { color: #b9f3e4; }
+    textarea::placeholder { color: #647894; }
+    .panel-foot { min-height: 49px; display: flex; align-items: center; justify-content: space-between; gap: 14px; border-top: 1px solid #ffffff12; color: #8194ac; font-size: 12px; padding: 12px 21px; }
+    .foot-left { display: inline-flex; align-items: center; gap: 8px; }
+    .foot-left .tiny-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--teal); }
+    .key { border: 1px solid #36465e; border-bottom-width: 2px; border-radius: 5px; padding: 2px 6px; font-size: 10px; color: #afc2d8; background: #1b2b40; }
+    .options { margin: 22px 0 0; padding: 20px 24px; background: #ffffff08; border: 1px solid #ffffff17; border-radius: 15px; display: flex; flex-wrap: wrap; align-items: center; gap: 18px 34px; }
+    .options-title { display: inline-flex; align-items: center; gap: 8px; color: #e8f1fc; font-weight: 700; font-size: 13px; }
+    .option { display: inline-flex; align-items: center; gap: 10px; color: #bfcee0; font-size: 13px; cursor: pointer; user-select: none; }
+    .option input { position: absolute; opacity: 0; width: 1px; height: 1px; }
+    .switch { position: relative; display: inline-block; width: 37px; height: 21px; border-radius: 20px; background: #33455e; border: 1px solid #52617a; transition: background .2s; flex: none; }
+    .switch::after { content: ""; position: absolute; top: 3px; left: 3px; width: 13px; height: 13px; border-radius: 50%; background: #d1dceb; transition: transform .2s; }
+    .option input:checked + .switch { background: #3fcdb8; border-color: #3fcdb8; }
+    .option input:checked + .switch::after { transform: translateX(16px); background: #09302d; }
+    .option code { font-size: 12px; color: #d1e0f3; }
+    .option-note { margin-left: auto; font-size: 12px; color: #8095b0; }
+    .info { margin: 20px 0 45px; display: flex; gap: 11px; align-items: flex-start; border: 1px solid #3b647041; background: #25495723; border-radius: 12px; padding: 15px 18px; color: #a9bad0; line-height: 1.75; font-size: 13px; }
+    .info svg { width: 17px; height: 17px; flex: none; margin-top: 3px; color: #84e8d6; }
+    .info strong { color: #d9f9f3; font-weight: 600; }
+    .info code { font-family: Consolas, monospace; color: #c6f4ea; }
+    footer { padding: 0 0 28px; color: #6e809b; text-align: center; font-size: 11px; }
+    #toast { position: fixed; z-index: 10; bottom: 28px; left: 50%; transform: translate(-50%, 15px); padding: 11px 18px; border-radius: 10px; background: #d5fff3; color: #143d3b; box-shadow: 0 12px 35px #0006; font-size: 13px; font-weight: 700; opacity: 0; pointer-events: none; transition: opacity .22s, transform .22s; }
+    #toast.show { opacity: 1; transform: translate(-50%,0); }
+    .error { color: var(--red) !important; }
+    .output-panel.invalid { border-color: #ff9b9b66; }
+    @media (max-width: 900px) {
+      .shell { width: min(100% - 36px, 680px); }
+      .hero { padding: 28px 0 31px; }
+      .workspace { grid-template-columns: 1fr; }
+      .editor, .editor textarea { min-height: 260px; }
+      .option-note { width: 100%; margin-left: 0; }
+    }
+    @media (max-width: 460px) {
+      .topbar { padding-top: 19px; }
+      .top-tag { font-size: 10px; }
+      h1 { font-size: 31px; }
+      .panel-head { align-items: flex-start; flex-wrap: wrap; }
+      .panel-actions { width: 100%; justify-content: flex-start; padding-left: 49px; }
+      .panel-foot { flex-wrap: wrap; }
+      .options { gap: 15px; padding: 18px; }
+      .editor textarea { padding: 18px; font-size: 12px; }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after { transition: none !important; scroll-behavior: auto !important; }
+    }
+  </style>
+</head>
+<body>
+  <div class="shell">
+    <header class="topbar">
+      <div class="brand"><div class="brand-symbol" aria-hidden="true">∑</div><span>Tablecraft<span style="color:#7a91a9">.</span></span></div>
+      <div class="top-tag"><span class="dot"></span> 本地运行 · 无需联网</div>
+    </header>
+
+    <section class="hero">
+      <div class="eyebrow">MARKDOWN &nbsp;→&nbsp; LATEX</div>
+      <h1>让表格转换，<span>简单又漂亮。</span></h1>
+      <p>粘贴 Markdown 表格，即刻生成带完整边框的 LaTeX <code style="color:#dce9ff">array</code> 代码。支持中文、数学公式及混合内容。</p>
+    </section>
+
+    <main class="workspace">
+      <section class="panel" aria-label="Markdown 输入区域">
+        <div class="panel-head">
+          <div class="heading">
+            <div class="panel-icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 9h18M9 9v11M15 9v11"/></svg>
+            </div>
+            <div><div class="panel-title">Markdown 输入</div><div class="panel-subtitle">粘贴或编辑你的原始表格</div></div>
+          </div>
+          <div class="panel-actions">
+            <button class="btn" id="exampleButton" type="button" title="载入示例表格">载入示例</button>
+            <button class="btn" id="clearButton" type="button" title="清空输入">清空</button>
+          </div>
+        </div>
+        <div class="editor"><textarea id="input" aria-label="输入 Markdown 格式的表格" spellcheck="false" placeholder="在这里粘贴 Markdown 表格，例如：&#10;&#10;| 名称 | 复杂度 |&#10;|---|---|&#10;| 查询 | $O(\log n)$ |"></textarea></div>
+        <div class="panel-foot"><span class="foot-left"><span class="tiny-dot"></span><span id="inputStatus" aria-live="polite">等待输入</span></span><span>支持 <code>$...$</code> 和 <code>\(...\)</code></span></div>
+      </section>
+
+      <section class="panel output-panel" id="outputPanel" aria-label="LaTeX 输出区域">
+        <div class="panel-head">
+          <div class="heading">
+            <div class="panel-icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="m8 8-4 4 4 4m8-8 4 4-4 4M14 4l-4 16"/></svg>
+            </div>
+            <div><div class="panel-title">LaTeX 输出</div><div class="panel-subtitle">实时生成 array 表格代码</div></div>
+          </div>
+          <div class="panel-actions">
+            <button class="btn btn-primary" id="copyButton" type="button" aria-label="复制生成的 LaTeX 代码">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="8" y="8" width="12" height="12" rx="2"/><path d="M16 8V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h2"/></svg>
+              <span id="copyLabel">复制代码</span>
+            </button>
+          </div>
+        </div>
+        <div class="editor"><textarea id="output" readonly spellcheck="false" aria-label="转换后的 LaTeX array 代码" placeholder="转换结果将显示在这里…"></textarea></div>
+        <div class="panel-foot"><span class="foot-left"><span class="tiny-dot"></span><span id="outputStatus" aria-live="polite">等待转换</span></span><span><span class="key">Ctrl</span> / <span class="key">⌘</span> + <span class="key">Enter</span> 复制</span></div>
+      </section>
+    </main>
+
+    <section class="options" aria-label="转换选项">
+      <div class="options-title">
+        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 7h16M4 17h16"/><circle cx="9" cy="7" r="3" fill="#142032"/><circle cx="15" cy="17" r="3" fill="#142032"/></svg>
+        转换选项
+      </div>
+      <label class="option"><input type="checkbox" id="alignOption"/><span class="switch"></span><span>遵循 Markdown 列对齐方式</span></label>
+      <label class="option"><input type="checkbox" id="mathOption"/><span class="switch"></span><span>添加 <code>\[ ... \]</code> 数学环境</span></label>
+      <span class="option-note">默认所有列居中：<code>{|c|c|...|}</code></span>
+    </section>
+
+    <aside class="info">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 11v6M12 7.5h.01"/></svg>
+      <div><strong>使用提示：</strong>输出默认只包含 <code>\begin{array} ... \end{array}</code>，请将其放在 LaTeX 数学环境中；也可打开上方开关，自动添加 <code>\[ ... \]</code>。中文建议使用 XeLaTeX + <code>ctex</code>，并加载 <code>amsmath</code> 以支持 <code>\text{...}</code>。</div>
+    </aside>
+    <footer>Tablecraft · 轻量、离线、无需上传内容</footer>
+  </div>
+  <div role="status" aria-live="polite" id="toast"></div>
+
+  <script>
+    'use strict';
+
+    const example = `| 操作 | 时间复杂度 | 说明 |
+| :--- | :---: | ---: |
+| 插入 | $O(\\log n)$ | 支持中文 |
+| 查询 | $O(1)$ | 当 $a_i \\le b_i$ 时成立 |
+| 删除 | $O(n)$ | 最坏情况 |`;
+
+    const input = document.querySelector('#input');
+    const output = document.querySelector('#output');
+    const inputStatus = document.querySelector('#inputStatus');
+    const outputStatus = document.querySelector('#outputStatus');
+    const outputPanel = document.querySelector('#outputPanel');
+    const alignOption = document.querySelector('#alignOption');
+    const mathOption = document.querySelector('#mathOption');
+    const toast = document.querySelector('#toast');
+    const copyLabel = document.querySelector('#copyLabel');
+    let toastTimer = null;
+    let copyTimer = null;
+
+    const escapedSpecial = {
+      '\\': '\\textbackslash{}',
+      '{': '\\{', '}': '\\}',
+      '#': '\\#', '$': '\\$', '%': '\\%',
+      '&': '\\&', '_': '\\_',
+      '~': '\\textasciitilde{}', '^': '\\textasciicircum{}'
+    };
+
+    function escapedAt(str, at) {
+      let count = 0;
+      for (let k = at - 1; k >= 0 && str[k] === '\\'; --k) count++;
+      return count % 2 === 1;
+    }
+
+    function countRun(str, at, char) {
+      let k = at;
+      while (str[k] === char) k++;
+      return k - at;
+    }
+
+    // 只在单元格间的 | 分列，跳过转义竖线、代码片段及数学公式中的竖线。
+    function splitRow(line) {
+      const s = line.trim();
+      const cells = [];
+      let current = '';
+      let math = null;
+      let codeTicks = 0;
+
+      for (let i = 0; i < s.length;) {
+        if (codeTicks) {
+          if (s[i] === '`') {
+            const run = countRun(s, i, '`');
+            if (run === codeTicks) codeTicks = 0;
+            current += s.slice(i, i + run);
+            i += run;
+          } else {
+            current += s[i++];
+          }
+          continue;
+        }
+        if (math === 'paren' && s.startsWith('\\)', i)) {
+          math = null; current += '\\)'; i += 2; continue;
+        }
+        if (math === 'dollar' && s[i] === '$' && !escapedAt(s, i)) {
+          math = null; current += '$'; i++; continue;
+        }
+        if (math === 'double-dollar' && s.startsWith('$$', i) && !escapedAt(s, i)) {
+          math = null; current += '$$'; i += 2; continue;
+        }
+        if (!math && s.startsWith('\\(', i)) {
+          math = 'paren'; current += '\\('; i += 2; continue;
+        }
+        if (!math && s[i] === '$' && !escapedAt(s, i)) {
+          const doubled = s.startsWith('$$', i);
+          math = doubled ? 'double-dollar' : 'dollar';
+          current += doubled ? '$$' : '$';
+          i += doubled ? 2 : 1;
+          continue;
+        }
+        if (!math && s[i] === '`' && !escapedAt(s, i)) {
+          const run = countRun(s, i, '`');
+          codeTicks = run;
+          current += s.slice(i, i + run);
+          i += run;
+          continue;
+        }
+        if (s[i] === '\\' && i + 1 < s.length) {
+          if (!math && s[i + 1] === '|') {
+            current += '|';
+          } else {
+            current += s.slice(i, i + 2);
+          }
+          i += 2;
+          continue;
+        }
+        if (s[i] === '|' && !math) {
+          cells.push(current.trim());
+          current = '';
+        } else {
+          current += s[i];
+        }
+        i++;
+      }
+      cells.push(current.trim());
+      if (s.startsWith('|')) cells.shift();
+      if (s.endsWith('|') && !escapedAt(s, s.length - 1)) cells.pop();
+      return cells;
+    }
+
+    function getSeparatorAlignment(row) {
+      if (!row.length || !row.every(cell => /^:?-{3,}:?$/.test(cell))) return null;
+      return row.map(cell => {
+        if (cell.startsWith(':') && cell.endsWith(':')) return 'c';
+        if (cell.endsWith(':')) return 'r';
+        if (cell.startsWith(':')) return 'l';
+        return 'c';
+      });
+    }
+
+    function escapeText(str) {
+      return [...str].map(ch => escapedSpecial[ch] ?? ch).join('');
+    }
+
+    function findMathEnd(cell, from, closing) {
+      for (let i = from; i < cell.length; i++) {
+        if (cell.startsWith(closing, i) && !escapedAt(cell, i)) return i;
+      }
+      return -1;
+    }
+
+    // 单元格：$公式$ 或 \(公式\) 原样作为数学内容，普通文字用 \text{} 包裹。
+    function convertCell(cell) {
+      const s = cell.trim();
+      if (!s) return '\\text{}';
+      const fragments = [];
+      let last = 0;
+
+      for (let i = 0; i < s.length;) {
+        let opening = null;
+        let closing = null;
+        if (s.startsWith('\\(', i)) {
+          opening = '\\('; closing = '\\)';
+        } else if (s[i] === '$' && !escapedAt(s, i)) {
+          opening = s.startsWith('$$', i) ? '$$' : '$';
+          closing = opening;
+        }
+        if (!opening) { i++; continue; }
+        const end = findMathEnd(s, i + opening.length, closing);
+        if (end === -1) { i += opening.length; continue; }
+        if (i > last) fragments.push('\\text{' + escapeText(s.slice(last, i)) + '}');
+        fragments.push(s.slice(i + opening.length, end).trim());
+        i = end + closing.length;
+        last = i;
+      }
+      if (last < s.length) fragments.push('\\text{' + escapeText(s.slice(last)) + '}');
+      return fragments.join('') || '\\text{}';
+    }
+
+    function convertMarkdown(markdown) {
+      const source = markdown.replace(/\r\n?/g, '\n');
+      const lines = source.split('\n').map(s => s.trim()).filter(Boolean);
+      const candidates = lines.filter(s => s.includes('|'));
+      if (!candidates.length) throw new Error('没有检测到 Markdown 表格，请输入带有 | 的表格。');
+
+      const parsed = candidates.map(splitRow);
+      let alignment = null;
+      const rows = [];
+      for (const row of parsed) {
+        const separator = getSeparatorAlignment(row);
+        if (separator) {
+          alignment ??= separator;
+        } else {
+          rows.push(row);
+        }
+      }
+      if (!rows.length) throw new Error('没有找到表格内容行。');
+      const cols = rows[0].length;
+      if (cols < 1) throw new Error('表格至少需要一列。');
+      rows.forEach((row, index) => {
+        if (row.length !== cols) {
+          throw new Error(`第 ${index + 1} 行有 ${row.length} 列，但表格首行有 ${cols} 列。请检查 | 的位置。`);
+        }
+      });
+      if (alignment && alignment.length !== cols) throw new Error('Markdown 对齐分隔行与表格列数不一致。');
+
+      const columnTypes = alignOption.checked && alignment ? alignment : Array(cols).fill('c');
+      const columnSpec = '|' + columnTypes.join('|') + '|';
+      const parts = [`\\begin{array}{${columnSpec}}`, '\\hline'];
+      for (const row of rows) {
+        parts.push(row.map(convertCell).join(' & ') + ' \\\\ \\hline');
+      }
+      parts.push('\\end{array}');
+      if (mathOption.checked) {
+        parts.unshift('\\[');
+        parts.push('\\]');
+      }
+      return { result: parts.join('\n'), cols, rows: rows.length };
+    }
+
+    function update() {
+      const value = input.value;
+      outputPanel.classList.remove('invalid');
+      inputStatus.classList.remove('error');
+      outputStatus.classList.remove('error');
+      if (!value.trim()) {
+        output.value = '';
+        inputStatus.textContent = '等待输入';
+        outputStatus.textContent = '等待转换';
+        return;
+      }
+      try {
+        const { result, cols, rows } = convertMarkdown(value);
+        output.value = result;
+        inputStatus.textContent = `${rows} 行 · ${cols} 列`;
+        outputStatus.textContent = '已实时生成 · 带完整边框';
+      } catch (err) {
+        output.value = '';
+        outputPanel.classList.add('invalid');
+        outputStatus.classList.add('error');
+        inputStatus.classList.add('error');
+        inputStatus.textContent = '请检查输入格式';
+        outputStatus.textContent = err.message || '转换失败';
+      }
+    }
+
+    function showToast(message) {
+      toast.textContent = message;
+      toast.classList.add('show');
+      clearTimeout(toastTimer);
+      toastTimer = setTimeout(() => toast.classList.remove('show'), 1800);
+    }
+
+    async function copyOutput() {
+      if (!output.value) { showToast('暂无可复制的代码'); return; }
+      try {
+        if (navigator.clipboard && window.isSecureContext) {
+          await navigator.clipboard.writeText(output.value);
+        } else {
+          // file:// 页面中也能复制：兼容不支持 Clipboard API 的浏览器。
+          output.focus();
+          output.select();
+          if (!document.execCommand('copy')) throw new Error('复制失败');
+          input.focus();
+        }
+        showToast('已复制 LaTeX 代码');
+        copyLabel.textContent = '已复制';
+        clearTimeout(copyTimer);
+        copyTimer = setTimeout(() => copyLabel.textContent = '复制代码', 2000);
+      } catch (e) {
+        output.focus();
+        output.select();
+        showToast('自动复制受限，已选中内容，可手动复制');
+      }
+    }
+
+    document.querySelector('#exampleButton').addEventListener('click', () => {
+      input.value = example; update(); input.focus(); showToast('已载入示例');
+    });
+    document.querySelector('#clearButton').addEventListener('click', () => {
+      input.value = ''; update(); input.focus();
+    });
+    document.querySelector('#copyButton').addEventListener('click', copyOutput);
+    input.addEventListener('input', update);
+    alignOption.addEventListener('change', update);
+    mathOption.addEventListener('change', update);
+    document.addEventListener('keydown', e => {
+      if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+        e.preventDefault(); copyOutput();
+      }
+    });
+
+    input.value = example;
+    update();
+  </script>
+</body>
+</html>
